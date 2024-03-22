@@ -15,6 +15,9 @@
 char newTodoText[MAX_TODO_LENGTH] = {0};
 int newTodoTextLength = 0;
 int selectedTodoIndex = -1; // No todo selected initially
+// These are the new starting positions for the "X" button and checkbox relative to each todo item
+int deleteButtonOffset = 540; // Offset for the delete "X" button from startX
+int checkboxOffset = 500; // Offset for the checkbox from startX
 
 typedef struct {
     char text[MAX_TODO_LENGTH];
@@ -112,7 +115,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         return 0;
     }
     HWND hWnd = CreateWindowEx(0, "MyWindowClass", "Windowed Todo List App", WS_OVERLAPPEDWINDOW,
-                               CW_USEDEFAULT, CW_USEDEFAULT, 640, 480, NULL, NULL, hInstance, NULL);
+                               CW_USEDEFAULT, CW_USEDEFAULT, 600, 800, NULL, NULL, hInstance, NULL);
     if (!hWnd) {
         MessageBox(NULL, "Window Creation Failed!", "Error", MB_ICONEXCLAMATION | MB_OK);
         return 0;
@@ -120,18 +123,18 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
    // Create an Add Button
     HWND hAddButton = CreateWindowEx(
         0, "BUTTON", "Add Todo", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,
-        500, 40, 100, 30, hWnd, (HMENU)IDC_ADD_BUTTON, GetModuleHandle(NULL), NULL);
+        470, 10, 100, 30, hWnd, (HMENU)IDC_ADD_BUTTON, GetModuleHandle(NULL), NULL);
 
     // Create a Delete Button
-    HWND hDeleteButton = CreateWindowEx(
-        0, "BUTTON", "[X]", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,
-        500, 80, 100, 30, hWnd, (HMENU)IDC_DELETE_BUTTON, GetModuleHandle(NULL), NULL);
+    // HWND hDeleteButton = CreateWindowEx(
+    //     0, "BUTTON", "[X]", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,
+    //     500, 80, 100, 30, hWnd, (HMENU)IDC_DELETE_BUTTON, GetModuleHandle(NULL), NULL);
 
     // Adjust the input edit field to be at the top
     hInputEdit = CreateWindowEx(
         WS_EX_CLIENTEDGE, "EDIT", "",
         WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL,
-        10, 10, 480, 20, hWnd, (HMENU)IDC_INPUT_EDIT, GetModuleHandle(NULL), NULL);
+        30, 10, 430, 30, hWnd, (HMENU)IDC_INPUT_EDIT, GetModuleHandle(NULL), NULL);
         ShowWindow(hWnd, nCmdShow);
         UpdateWindow(hWnd);
         MSG msg;
@@ -215,46 +218,97 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
             HDC hdc = BeginPaint(hwnd, &ps);
             FillRect(hdc, &ps.rcPaint, (HBRUSH) (COLOR_WINDOW+1));
 
+            int startX = 10; // Declare and initialize startX here
+            int startY = 100; // Declare and initialize startY here
+
             SetTextColor(hdc, RGB(0, 0, 0)); // Black color
             SetBkMode(hdc, TRANSPARENT); // Transparent background for text
 
-            // Start drawing todos below the input field and buttons
-            int startY = 100; // Adjust as needed to fit your layout
+            // Create the regular and strikethrough fonts
+            LOGFONT lf = {0};
+            lf.lfHeight = 20; // Adjust the font size as necessary
+            lf.lfWeight = FW_NORMAL;
+            // Regular font
+            lf.lfStrikeOut = FALSE;
+            HFONT hFontRegular = CreateFontIndirect(&lf);
+            // Strikethrough font
+            lf.lfStrikeOut = TRUE;
+            HFONT hFontStrikethrough = CreateFontIndirect(&lf);
 
             for (int i = 0; i < numTodos; ++i) {
-                if (i == selectedTodoIndex) {
-                    // Set a different background color for the selected item
-                    SetBkMode(hdc, OPAQUE);
-                 SetBkColor(hdc, RGB(220, 220, 220)); // Light gray background for the selected item
+                int itemY = startY + (i * 30); // Calculate Y position of each item
+
+                // Draw checkbox
+                Rectangle(hdc, startX + checkboxOffset, itemY, startX + checkboxOffset + 20, itemY + 20);
+                if (todos[i].completed) {
+                    HBRUSH hBrush = CreateSolidBrush(RGB(0, 255, 0));
+                    FillRect(hdc, &(RECT){startX + checkboxOffset + 3, itemY + 3, startX + checkboxOffset + 17, itemY + 17}, hBrush);
+                    DeleteObject(hBrush);
+                }
+ 
+                // Select appropriate font
+                if (todos[i].completed) {
+                    SelectObject(hdc, hFontStrikethrough);
+                } else {
+                    SelectObject(hdc, hFontRegular);
                 }
 
+                // Draw the todo item's text
+                char displayText[MAX_TODO_LENGTH];
+                snprintf(displayText, sizeof(displayText), "%d. %s", i + 1, todos[i].text);
+                TextOut(hdc, startX, itemY, displayText, strlen(displayText));
+                
+                // Revert to the regular font for subsequent text, like the "X" button
+                SelectObject(hdc, hFontRegular);
+                TextOut(hdc, startX + deleteButtonOffset, itemY, "X", 1);
 
-        if (i == selectedTodoIndex) {
+            }
+            // Clean up: Delete the fonts after use
+            DeleteObject(hFontRegular);
+            DeleteObject(hFontStrikethrough);
             
-            SetBkColor(hdc, RGB(220, 220, 220)); // Light gray background for the selected item
-        } else {
-            SetBkColor(hdc, RGB(255, 255, 255)); // White background for non-selected items
-        }
-        char displayText[MAX_TODO_LENGTH]; // Extra space for numbering
-        snprintf(displayText, sizeof(displayText), "%d. %s", i + 1, todos[i].text);
-        TextOut(hdc, 10, startY + (i * 20), displayText, strlen(displayText));
-    }
             EndPaint(hwnd, &ps);
             break;
         }
-        case WM_LBUTTONDOWN: {
-            int yPos = (short)HIWORD(lParam) - 100; // Adjust for starting Y of todo items
-            if (yPos > 0) {
-                int clickedIndex = yPos / 20; // Assuming each item's height is 20
-                if (clickedIndex < numTodos) {
-                    if (selectedTodoIndex != clickedIndex) {
-                        selectedTodoIndex = clickedIndex;
-                        InvalidateRect(hwnd, NULL, TRUE); // Invalidate the entire window
+
+
+
+        //                 // Draw checkbox (toggle completion)
+        //         Rectangle(hdc, startX + 420, startY + i*430, startX + 440, startY + i*30 + 20);
+        //         if (todos[i].completed) {
+        //             // Draw a green checkmark or filled rectangle for simplicity
+        //             HBRUSH hBrush = CreateSolidBrush(RGB(0, 255, 0));
+        //             FillRect(hdc, &(RECT){startX + 420, startY + i*430 + 2, startX + 440, startY + i*30 + 18}, hBrush);
+        //             DeleteObject(hBrush);
+        //         }
+        //                 // Draw "X" button (delete item)
+        //    TextOut(hdc, startX + 450, startY + i*450, "X", 1);
+
+           
+case WM_LBUTTONDOWN: {
+    int xPos = LOWORD(lParam);
+    int yPos = HIWORD(lParam);
+    int startX = 10; // Match with your drawing logic in WM_PAINT
+    int startY = 100; // Match with your drawing logic in WM_PAINT
+   //   int yPos = HIWORD(lParam) - startY;
+
+        for (int i = 0; i < numTodos; i++) {
+                int itemY = startY + (i * 30);
+                // Checkbox click area
+                if (xPos >= startX + checkboxOffset && xPos <= startX + checkboxOffset + 20 && yPos >= itemY && yPos <= itemY + 20) {
+                    ToggleCompletion(hwnd, i);
+                }
+                // "X" button click area
+                if (xPos >= startX + deleteButtonOffset && xPos <= startX + deleteButtonOffset + 20 && yPos >= itemY && yPos <= itemY + 20) {
+                    if (MessageBox(hwnd, "Are you sure you want to delete this item?", "Confirm", MB_YESNO | MB_ICONQUESTION) == IDYES) {
+                        DeleteTodo(hwnd, i);
                     }
                 }
             }
+            InvalidateRect(hwnd, NULL, TRUE);
             break;
         }
+
         case WM_DESTROY:
             PostQuitMessage(0);
             break;
