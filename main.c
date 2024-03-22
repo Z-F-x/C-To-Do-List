@@ -1,10 +1,18 @@
-// Compile with gcc main.c -o C-To-Do-List.exe -mwindows
+// Compile with gcc main.c bitmap.c -o C-To-Do-List.exe -mwindows
 // Reference https://learn.microsoft.com/en-us/windows/win32/learnwin32/your-first-windows-program
 
 #include <stdio.h>
 #include <string.h>
 #include <Windows.h>
 #include <ctype.h> // Include ctype.h for isspace
+#include <time.h> // Add this line at the beginning of main.c
+
+// bitmap.h
+#ifndef BITMAP_H // Prevent multiple inclusions
+#define BITMAP_H
+#include <windows.h> // Include Windows.h here or in each C file as needed
+HBITMAP CreateCheckboxBitmap(HDC hdc, BOOL checked);
+#endif // BITMAP_H
 
 #define MAX_TODO_LENGTH 100
 #define MAX_TODOS 10
@@ -22,7 +30,10 @@ int checkboxOffset = 500; // Offset for the checkbox from startX
 typedef struct {
     char text[MAX_TODO_LENGTH];
     BOOL completed;
+    char timestamp[20]; // Enough to hold timestamps in "YYYY-MM-DD HH:MM:SS" format
 } TodoItem;
+
+
 
 TodoItem todos[MAX_TODOS];
 int numTodos = 0; // Initial number of todos
@@ -54,22 +65,30 @@ void LoadTodos() {
 
 void AddTodo(HWND hwnd, const char* text) {
     if (numTodos < MAX_TODOS) {
-        strncpy(todos[numTodos].text, text, MAX_TODO_LENGTH);
+        strncpy(todos[numTodos].text, text, MAX_TODO_LENGTH - 1);
         todos[numTodos].text[MAX_TODO_LENGTH - 1] = '\0'; // Ensure null termination
         todos[numTodos].completed = FALSE;
+
+        // Get current time and format it
+        time_t now = time(NULL);
+        struct tm *tm_now = localtime(&now);
+        strftime(todos[numTodos].timestamp, sizeof(todos[numTodos].timestamp), "%Y-%m-%d %H:%M:%S", tm_now);
+
         numTodos++;
         InvalidateRect(hwnd, NULL, TRUE); // Redraw window
         
         // Append new todo to a file
-        FILE* file = fopen("todos.txt", "a"); // Open the file in append mode
+        FILE* file = fopen("todos.txt", "a");
         if (file != NULL) {
-            fprintf(file, "%s\n", text); // Write the todo text followed by a newline
-            fclose(file); // Close the file
+            // You might also want to save the timestamp in your file
+            fprintf(file, "%s - %s\n", todos[numTodos - 1].timestamp, text);
+            fclose(file);
         } else {
             MessageBox(hwnd, "Failed to open file for writing.", "Error", MB_OK);
         }
     }
 }
+
 
 void DeleteTodo(HWND hwnd, int index) {
     if (index >= 0 && index < numTodos) {
@@ -123,18 +142,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
    // Create an Add Button
     HWND hAddButton = CreateWindowEx(
         0, "BUTTON", "Add Todo", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,
-        470, 10, 100, 30, hWnd, (HMENU)IDC_ADD_BUTTON, GetModuleHandle(NULL), NULL);
-
-    // Create a Delete Button
-    // HWND hDeleteButton = CreateWindowEx(
-    //     0, "BUTTON", "[X]", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,
-    //     500, 80, 100, 30, hWnd, (HMENU)IDC_DELETE_BUTTON, GetModuleHandle(NULL), NULL);
+        470, 19, 100, 30, hWnd, (HMENU)IDC_ADD_BUTTON, GetModuleHandle(NULL), NULL);
 
     // Adjust the input edit field to be at the top
     hInputEdit = CreateWindowEx(
         WS_EX_CLIENTEDGE, "EDIT", "",
         WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL,
-        30, 10, 430, 30, hWnd, (HMENU)IDC_INPUT_EDIT, GetModuleHandle(NULL), NULL);
+        30, 20, 430, 30, hWnd, (HMENU)IDC_INPUT_EDIT, GetModuleHandle(NULL), NULL);
         ShowWindow(hWnd, nCmdShow);
         UpdateWindow(hWnd);
         MSG msg;
@@ -191,7 +205,6 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
         int prevSelectedIndex = selectedTodoIndex;
         if (wParam == VK_UP) selectedTodoIndex = max(0, selectedTodoIndex - 1);
         if (wParam == VK_DOWN) selectedTodoIndex = min(numTodos - 1, selectedTodoIndex + 1);
-
         // Load selected item's text into the input box for editing
         if (selectedTodoIndex != prevSelectedIndex && selectedTodoIndex >= 0 && selectedTodoIndex < numTodos) {
             SetWindowText(hInputEdit, todos[selectedTodoIndex].text);
@@ -200,90 +213,106 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
         InvalidateRect(hwnd, NULL, TRUE);
     }
     break;
+        case WM_CHAR: {
             switch (wParam) {
                 case 'N': // Add a new todo
                     AddTodo(hwnd, "New Todo");
+                    InvalidateRect(hwnd, NULL, TRUE); // Redraw window to reflect changes
                     break;
                 case 'D': // Delete the first todo
-                    DeleteTodo(hwnd, 0);
+                    if (numTodos > 0) { // Ensure there's at least one todo to delete
+                        DeleteTodo(hwnd, 0);
+                        InvalidateRect(hwnd, NULL, TRUE); // Redraw window to reflect changes
+                    }
                     break;
                 case 'T': // Toggle completion of the first todo
-                    ToggleCompletion(hwnd, 0);
+                    if (numTodos > 0) { // Ensure there's at least one todo to toggle
+                        ToggleCompletion(hwnd, 0);
+                        InvalidateRect(hwnd, NULL, TRUE); // Redraw window to reflect changes
+                    }
                     break;
             }
             break;
+        }
 
         case WM_PAINT: {
             PAINTSTRUCT ps;
             HDC hdc = BeginPaint(hwnd, &ps);
             FillRect(hdc, &ps.rcPaint, (HBRUSH) (COLOR_WINDOW+1));
+            HBITMAP CreateCheckboxBitmap(HDC hdc, BOOL checked);
+
 
             int startX = 10; // Declare and initialize startX here
             int startY = 100; // Declare and initialize startY here
 
             SetTextColor(hdc, RGB(0, 0, 0)); // Black color
             SetBkMode(hdc, TRANSPARENT); // Transparent background for text
-
             // Create the regular and strikethrough fonts
             LOGFONT lf = {0};
             lf.lfHeight = 20; // Adjust the font size as necessary
             lf.lfWeight = FW_NORMAL;
+            strcpy(lf.lfFaceName, TEXT("Cascadia Code"));
             // Regular font
             lf.lfStrikeOut = FALSE;
+            lf.lfUnderline = FALSE;
             HFONT hFontRegular = CreateFontIndirect(&lf);
             // Strikethrough font
             lf.lfStrikeOut = TRUE;
             HFONT hFontStrikethrough = CreateFontIndirect(&lf);
+            // Regular underlined font
+            lf.lfStrikeOut = FALSE;
+            lf.lfUnderline = TRUE;
+            HFONT hFontUnderlined = CreateFontIndirect(&lf);
+            // Strikethrough underlined font
+            lf.lfStrikeOut = TRUE;
+            HFONT hFontStrikethroughUnderlined = CreateFontIndirect(&lf);
 
-            for (int i = 0; i < numTodos; ++i) {
-                int itemY = startY + (i * 30); // Calculate Y position of each item
+   for (int i = 0; i < numTodos; ++i) {
+        int itemY = startY + (i * 30); // Calculate Y position for each item
 
-                // Draw checkbox
-                Rectangle(hdc, startX + checkboxOffset, itemY, startX + checkboxOffset + 20, itemY + 20);
-                if (todos[i].completed) {
-                    HBRUSH hBrush = CreateSolidBrush(RGB(0, 255, 0));
-                    FillRect(hdc, &(RECT){startX + checkboxOffset + 3, itemY + 3, startX + checkboxOffset + 17, itemY + 17}, hBrush);
-                    DeleteObject(hBrush);
-                }
- 
-                // Select appropriate font
-                if (todos[i].completed) {
-                    SelectObject(hdc, hFontStrikethrough);
-                } else {
-                    SelectObject(hdc, hFontRegular);
-                }
+        // Create and draw the checkbox bitmap for each todo item
+        HBITMAP hCheckboxBitmap = CreateCheckboxBitmap(hdc, todos[i].completed);
+        HDC hMemDC = CreateCompatibleDC(hdc);
+        SelectObject(hMemDC, hCheckboxBitmap);
+        BitBlt(hdc, startX + checkboxOffset, itemY, 20, 20, hMemDC, 0, 0, SRCCOPY);
+        DeleteDC(hMemDC);
+        DeleteObject(hCheckboxBitmap);
 
-                // Draw the todo item's text
-                char displayText[MAX_TODO_LENGTH];
-                snprintf(displayText, sizeof(displayText), "%d. %s", i + 1, todos[i].text);
-                TextOut(hdc, startX, itemY, displayText, strlen(displayText));
-                
-                // Revert to the regular font for subsequent text, like the "X" button
-                SelectObject(hdc, hFontRegular);
-                TextOut(hdc, startX + deleteButtonOffset, itemY, "X", 1);
-
-            }
-            // Clean up: Delete the fonts after use
-            DeleteObject(hFontRegular);
-            DeleteObject(hFontStrikethrough);
-            
-            EndPaint(hwnd, &ps);
-            break;
+        // Select the appropriate font based on completion and selection
+        HFONT selectedFont = hFontRegular; // Default to regular font
+        if (i == selectedTodoIndex) {   
+            selectedFont = todos[i].completed ? hFontStrikethroughUnderlined : hFontUnderlined;
+        } else if (todos[i].completed) {
+            selectedFont = hFontStrikethrough;
         }
+        SelectObject(hdc, selectedFont);
 
+         // Set text color based on completion status for the item text
+        COLORREF textColor = todos[i].completed ? RGB(128, 128, 128) : RGB(0, 0, 0);
+        SetTextColor(hdc, textColor);
 
+        // Construct and draw the todo item's text, including a timestamp if present
+        char displayText[MAX_TODO_LENGTH + 30]; // Adjust size for timestamp
+        snprintf(displayText, sizeof(displayText), "%s: %s", todos[i].timestamp, todos[i].text); // Assume timestamp exists
+        TextOut(hdc, startX + 25, itemY, displayText, strlen(displayText)); // Adjust text position for checkbox
 
-        //                 // Draw checkbox (toggle completion)
-        //         Rectangle(hdc, startX + 420, startY + i*430, startX + 440, startY + i*30 + 20);
-        //         if (todos[i].completed) {
-        //             // Draw a green checkmark or filled rectangle for simplicity
-        //             HBRUSH hBrush = CreateSolidBrush(RGB(0, 255, 0));
-        //             FillRect(hdc, &(RECT){startX + 420, startY + i*430 + 2, startX + 440, startY + i*30 + 18}, hBrush);
-        //             DeleteObject(hBrush);
-        //         }
-        //                 // Draw "X" button (delete item)
-        //    TextOut(hdc, startX + 450, startY + i*450, "X", 1);
+        // Set font and color for the "X" button
+        SelectObject(hdc, hFontRegular); // Use regular font for the "X" button
+        SetTextColor(hdc, RGB(33, 33, 33)); // Set text color to red for the "X" button
 
+        // Draw "X" button for deletion
+        TextOutW(hdc, startX + deleteButtonOffset, itemY, L"\u2715", 1); // Using Unicode for rendering the symbol
+    }
+
+    // Clean up: Delete the fonts after use
+    DeleteObject(hFontRegular);
+    DeleteObject(hFontStrikethrough);
+    DeleteObject(hFontUnderlined);
+    DeleteObject(hFontStrikethroughUnderlined);
+
+    EndPaint(hwnd, &ps);
+    break;
+}
            
 case WM_LBUTTONDOWN: {
     int xPos = LOWORD(lParam);
