@@ -14,8 +14,8 @@
 HBITMAP CreateCheckboxBitmap(HDC hdc, BOOL checked);
 #endif // BITMAP_H
 
-#define MAX_TODO_LENGTH 100
-#define MAX_TODOS 10
+#define MAX_TODO_LENGTH 42
+#define MAX_TODOS 9999
 #define IDC_ADD_BUTTON 101
 #define IDC_DELETE_BUTTON 102
 #define IDC_INPUT_EDIT 103 // Define IDC_INPUT_EDIT
@@ -28,60 +28,61 @@ int deleteButtonOffset = 540; // Offset for the delete "X" button from startX
 int checkboxOffset = 500; // Offset for the checkbox from startX
 
 typedef struct {
-    char text[MAX_TODO_LENGTH];
+    char text1[MAX_TODO_LENGTH];
+    char text2[MAX_TODO_LENGTH]; // New field for the second text
     BOOL completed;
-    char timestamp[20]; // Enough to hold timestamps in "YYYY-MM-DD HH:MM:SS" format
+    // char timestamp[20]; // Enough to hold timestamps in "YYYY-MM-DD HH:MM:SS" format
 } TodoItem;
 
 
 
 TodoItem todos[MAX_TODOS];
 int numTodos = 0; // Initial number of todos
-HWND hInputEdit;
+HWND hInputEdit; // Declare a handle for the first input field
+HWND hSecondInputEdit; // Declare a handle for the second input field
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 void LoadTodos() {
     FILE* file = fopen("todos.txt", "r");
     if (file != NULL) {
-        char line[MAX_TODO_LENGTH];
-        while (fgets(line, MAX_TODO_LENGTH, file) != NULL && numTodos < MAX_TODOS) {
-            // Remove newline character read by fgets
-            line[strcspn(line, "\n")] = 0;
-
-            // Check if the line is not empty (ignoring whitespace only lines)
-            char* trimmedLine = line;
-            while (isspace((unsigned char)*trimmedLine)) trimmedLine++;
-
-            if (*trimmedLine != '\0') { // Line is not empty
-                strncpy(todos[numTodos].text, line, MAX_TODO_LENGTH);
-                todos[numTodos].completed = FALSE;
-                numTodos++;
+        char line[2 * MAX_TODO_LENGTH + 1]; // Adjust buffer size for two texts and a delimiter
+        while (fgets(line, sizeof(line), file) != NULL && numTodos < MAX_TODOS) {
+            char *token = strtok(line, "|");
+            if (token != NULL) {
+                strncpy(todos[numTodos].text1, token, MAX_TODO_LENGTH);
+                token = strtok(NULL, "\n");
+                if (token != NULL) {
+                    strncpy(todos[numTodos].text2, token, MAX_TODO_LENGTH);
+                    todos[numTodos].completed = FALSE;
+                    numTodos++;
+                }
             }
         }
         fclose(file);
     }
 }
 
-void AddTodo(HWND hwnd, const char* text) {
+void AddTodo(HWND hwnd) {
     if (numTodos < MAX_TODOS) {
-        strncpy(todos[numTodos].text, text, MAX_TODO_LENGTH - 1);
-        todos[numTodos].text[MAX_TODO_LENGTH - 1] = '\0'; // Ensure null termination
-        todos[numTodos].completed = FALSE;
+        char buffer1[MAX_TODO_LENGTH];
+        char buffer2[MAX_TODO_LENGTH];
+        GetWindowText(hInputEdit, buffer1, sizeof(buffer1)); // Get text from the first input
+        GetWindowText(hSecondInputEdit, buffer2, sizeof(buffer2)); // Get text from the second input
 
-        // Get current time and format it
-        time_t now = time(NULL);
-        struct tm *tm_now = localtime(&now);
-        strftime(todos[numTodos].timestamp, sizeof(todos[numTodos].timestamp), "%Y-%m-%d %H:%M:%S", tm_now);
+        strncpy(todos[numTodos].text1, buffer1, MAX_TODO_LENGTH - 1);
+        todos[numTodos].text1[MAX_TODO_LENGTH - 1] = '\0'; // Ensure null termination for first text
+        strncpy(todos[numTodos].text2, buffer2, MAX_TODO_LENGTH - 1);
+        todos[numTodos].text2[MAX_TODO_LENGTH - 1] = '\0'; // Ensure null termination for second text
+        todos[numTodos].completed = FALSE;
 
         numTodos++;
         InvalidateRect(hwnd, NULL, TRUE); // Redraw window
         
-        // Append new todo to a file
+        // Update file storage logic to handle two texts
         FILE* file = fopen("todos.txt", "a");
         if (file != NULL) {
-            // You might also want to save the timestamp in your file
-            fprintf(file, "%s - %s\n", todos[numTodos - 1].timestamp, text);
+            fprintf(file, "%s|%s\n", buffer1, buffer2); // Save both texts separated by a delimiter
             fclose(file);
         } else {
             MessageBox(hwnd, "Failed to open file for writing.", "Error", MB_OK);
@@ -92,25 +93,25 @@ void AddTodo(HWND hwnd, const char* text) {
 
 void DeleteTodo(HWND hwnd, int index) {
     if (index >= 0 && index < numTodos) {
-        // Shift all items down one position from the deleted item's index
         for (int i = index; i < numTodos - 1; ++i) {
-            strcpy(todos[i].text, todos[i + 1].text);
+            strcpy(todos[i].text1, todos[i + 1].text1); // Corrected from todos[i].text
+            strcpy(todos[i].text2, todos[i + 1].text2); // Handle the second text field
             todos[i].completed = todos[i + 1].completed;
         }
         numTodos--;
 
-        // Now, update the file to reflect the new state of the todos array
-        FILE* file = fopen("todos.txt", "w"); // Open in write mode, which clears existing content
+        FILE* file = fopen("todos.txt", "w");
         if (file != NULL) {
             for (int i = 0; i < numTodos; ++i) {
-                fprintf(file, "%s\n", todos[i].text);
+                // Ensure both text fields are written, separated by a delimiter
+                fprintf(file, "%s|%s\n", todos[i].text1, todos[i].text2);
             }
             fclose(file);
         } else {
             MessageBox(hwnd, "Failed to open file for updating.", "Error", MB_OK);
         }
 
-        InvalidateRect(hwnd, NULL, TRUE); // Redraw window
+        InvalidateRect(hwnd, NULL, TRUE);
     }
 }
 
@@ -139,28 +140,84 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         MessageBox(NULL, "Window Creation Failed!", "Error", MB_ICONEXCLAMATION | MB_OK);
         return 0;
     }
+
+    int totalWidth = 600; // This is your window's width
+    int firstInputWidth = totalWidth * 1 / 5;
+    int secondInputWidth = totalWidth * 3 / 5;
+    int buttonWidth = totalWidth * 1 / 5;
+
+//    // Create an Add Button
+//     HWND hAddButton = CreateWindowEx(
+//     0, "BUTTON", "Add Todo", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,
+//     10 + firstInputWidth + secondInputWidth, 20, buttonWidth - 20, 30, hWnd, (HMENU)IDC_ADD_BUTTON, GetModuleHandle(NULL), NULL);
+
    // Create an Add Button
     HWND hAddButton = CreateWindowEx(
-        0, "BUTTON", "Add Todo", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,
-        470, 19, 100, 30, hWnd, (HMENU)IDC_ADD_BUTTON, GetModuleHandle(NULL), NULL);
+    0,                // No extended styles 
+    "BUTTON",         // Predefined class; Unicode assumed 
+    "Add",       // Button text 
+    WS_TABSTOP | WS_VISIBLE | WS_TABSTOP | WS_CHILD | BS_PUSHBUTTON,  // Styles
+    10 + firstInputWidth + secondInputWidth, // x position 
+    20,                                      // y position 
+    buttonWidth - 30,                        // Button width
+    30,                                      // Button height
+    hWnd,                                    // Parent window
+    (HMENU)IDC_ADD_BUTTON, // The control's ID for command messages
+    (HINSTANCE)GetWindowLongPtr(hWnd, GWLP_HINSTANCE),
+    NULL);            // Pointer not needed.
 
-    // Adjust the input edit field to be at the top
+    // Create an input field with WS_TABSTOP
     hInputEdit = CreateWindowEx(
-        WS_EX_CLIENTEDGE, "EDIT", "",
-        WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL,
-        30, 20, 430, 30, hWnd, (HMENU)IDC_INPUT_EDIT, GetModuleHandle(NULL), NULL);
+        WS_EX_CLIENTEDGE, // Extended window styles
+        "EDIT",           // Predefined class
+        "",               // No default text
+        WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL, // Styles including WS_TABSTOP
+        10,               // x position
+        20,               // y position
+        firstInputWidth - 20, // width
+        30,               // height
+        hWnd,             // parent window
+        (HMENU)IDC_INPUT_EDIT, // control ID
+        GetModuleHandle(NULL),
+        NULL);
+
+    // Set a character limit for the input field
+    SendMessage(hInputEdit, EM_SETLIMITTEXT, (WPARAM)10, 0); // Limit to 8 characters
+
+
+    // Similarly, for the second input field
+    hSecondInputEdit = CreateWindowEx(
+        WS_EX_CLIENTEDGE,
+        "EDIT",
+        "",
+        WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL, // Styles including WS_TABSTOP
+        10 + firstInputWidth, 20, secondInputWidth - 20, 30,
+        hWnd,
+        (HMENU)(IDC_INPUT_EDIT + 1), // You might need to define a different ID for the second input
+        GetModuleHandle(NULL),
+        NULL);
+
+    // Set a character limit for the input field
+    SendMessage(hSecondInputEdit, EM_SETLIMITTEXT, (WPARAM)40, 0); // Limit to 8 characters
+    // Note: You do not need to cast GetWindowLongPtr(hWnd, GWLP_HINSTANCE) to (HINSTANCE) for GetModuleHandle(NULL) is appropriate here.
+
         ShowWindow(hWnd, nCmdShow);
+        SetFocus(hInputEdit);
         UpdateWindow(hWnd);
         MSG msg;
-        while (GetMessage(&msg, NULL, 0, 0) > 0) {
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
+        while (GetMessage(&msg, NULL, 0, 0)) {
+            if (!IsDialogMessage(hWnd, &msg)) {
+                TranslateMessage(&msg);
+                DispatchMessage(&msg);
+            }
         }
 
         return (int)msg.wParam;
     }
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+   static int focusIndex = 1; // This variable will keep its value between calls
+    HWND hFocus;
     switch (uMsg) {
         case WM_COMMAND: {
             int wmId = LOWORD(wParam);
@@ -169,16 +226,23 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
                 char buffer[MAX_TODO_LENGTH];
                 GetWindowText(hInputEdit, buffer, sizeof(buffer));
 
-                if (selectedTodoIndex >= 0 && selectedTodoIndex < numTodos) {
-                    // Update existing todo item's text
-                    strncpy(todos[selectedTodoIndex].text, buffer, MAX_TODO_LENGTH);
-                    todos[selectedTodoIndex].text[MAX_TODO_LENGTH - 1] = '\0'; // Ensure null termination
-                } else {
-                    // Add new todo item
-                    AddTodo(hwnd, buffer);
-                }
+            // Inside the WM_COMMAND case for IDC_ADD_BUTTON:
+            if (selectedTodoIndex >= 0 && selectedTodoIndex < numTodos) {
+                char buffer1[MAX_TODO_LENGTH];
+                char buffer2[MAX_TODO_LENGTH];
+                GetWindowText(hInputEdit, buffer1, sizeof(buffer1));
+                GetWindowText(hSecondInputEdit, buffer2, sizeof(buffer2));
+                strncpy(todos[selectedTodoIndex].text1, buffer1, MAX_TODO_LENGTH);
+                strncpy(todos[selectedTodoIndex].text2, buffer2, MAX_TODO_LENGTH);
+                todos[selectedTodoIndex].text1[MAX_TODO_LENGTH - 1] = '\0'; // Ensure null termination for text1
+                todos[selectedTodoIndex].text2[MAX_TODO_LENGTH - 1] = '\0'; // Ensure null termination for text2
+            } else {
+                AddTodo(hwnd);
+            }
+
 
                 SetWindowText(hInputEdit, ""); // Clear the input box after updating/adding
+                SetWindowText(hSecondInputEdit, ""); // Clear the input box after updating/adding
                 selectedTodoIndex = -1; // Reset selection
                 InvalidateRect(hwnd, NULL, TRUE); // Redraw window
                 break;
@@ -194,48 +258,55 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
             }
             break; // Ensure we break after handling WM_COMMAND
         }
-        case WM_KEYDOWN:
-            if (wParam == VK_RETURN && newTodoTextLength > 0) { // Finalize todo
-                AddTodo(hwnd, newTodoText);
-                memset(newTodoText, 0, sizeof(newTodoText)); // Reset text
-                newTodoTextLength = 0; // Reset length
-                InvalidateRect(hwnd, NULL, TRUE); // Redraw window with updated text
-            } else if (wParam == VK_UP || wParam == VK_DOWN) {
-        // Navigate up or down in the todo list
-        int prevSelectedIndex = selectedTodoIndex;
-        if (wParam == VK_UP) selectedTodoIndex = max(0, selectedTodoIndex - 1);
-        if (wParam == VK_DOWN) selectedTodoIndex = min(numTodos - 1, selectedTodoIndex + 1);
-        // Load selected item's text into the input box for editing
-        if (selectedTodoIndex != prevSelectedIndex && selectedTodoIndex >= 0 && selectedTodoIndex < numTodos) {
-            SetWindowText(hInputEdit, todos[selectedTodoIndex].text);
-        }
-
-        InvalidateRect(hwnd, NULL, TRUE);
-    }
-    break;
-        case WM_CHAR: {
+                case WM_KEYDOWN: {
+                int totalControls = 2; // Start with two for the input fields.
             switch (wParam) {
-                case 'N': // Add a new todo
-                    AddTodo(hwnd, "New Todo");
-                    InvalidateRect(hwnd, NULL, TRUE); // Redraw window to reflect changes
-                    break;
-                case 'D': // Delete the first todo
-                    if (numTodos > 0) { // Ensure there's at least one todo to delete
-                        DeleteTodo(hwnd, 0);
-                        InvalidateRect(hwnd, NULL, TRUE); // Redraw window to reflect changes
+                case VK_TAB: {
+                    BOOL shiftPressed = GetKeyState(VK_SHIFT) & 0x8000;
+                    if (!shiftPressed) {
+                        // Forward cycle through controls
+                        focusIndex = (focusIndex + 1) % totalControls;
+                    } else {
+                        // Reverse cycle through controls
+                        focusIndex = (focusIndex - 1 + totalControls) % totalControls;
                     }
-                    break;
-                case 'T': // Toggle completion of the first todo
-                    if (numTodos > 0) { // Ensure there's at least one todo to toggle
-                        ToggleCompletion(hwnd, 0);
-                        InvalidateRect(hwnd, NULL, TRUE); // Redraw window to reflect changes
+
+                    // Depending on focusIndex, set the focus to the respective control
+                    if (focusIndex == 0) {
+                        SetFocus(hInputEdit);
+                    } else if (focusIndex == 1) {
+                        SetFocus(hSecondInputEdit);
+                    } else {
+                        // Logic for focusing todo items and their elements
+                        // This example doesn't provide direct implementation details
+                        // for focusing on custom elements like todo items or checkboxes.
+                        // You might manage this with a custom focus handling mechanism.
                     }
-                    break;
+
+                    return 0; // Handled the message
+                }
+                case VK_RETURN: {
+                    hFocus = GetFocus();
+                    if (hFocus == hInputEdit) {
+                        SetFocus(hSecondInputEdit);
+                    } else if (hFocus == hSecondInputEdit) {
+                        SendMessage(hwnd, WM_COMMAND, MAKEWPARAM(IDC_ADD_BUTTON, BN_CLICKED), 0);
+                    } else {
+                        // Logic for Enter on todo items, similar to above,
+                        // needs specific implementation for your app structure.
+                    }
+
+                    return 0; // Handled the message
+                }
+                // Additional VK_UP and VK_DOWN handling can be implemented similarly
             }
             break;
         }
 
         case WM_PAINT: {
+            // If secondInputWidth isn't globally defined, ensure it's calculated within WM_PAINT or passed appropriately.
+            // Assuming a totalWidth of 600, as in WinMain:
+            int secondInputWidth = 100;
             PAINTSTRUCT ps;
             HDC hdc = BeginPaint(hwnd, &ps);
             FillRect(hdc, &ps.rcPaint, (HBRUSH) (COLOR_WINDOW+1));
@@ -292,13 +363,19 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
         SetTextColor(hdc, textColor);
 
         // Construct and draw the todo item's text, including a timestamp if present
-        char displayText[MAX_TODO_LENGTH + 30]; // Adjust size for timestamp
-        snprintf(displayText, sizeof(displayText), "%s: %s", todos[i].timestamp, todos[i].text); // Assume timestamp exists
-        TextOut(hdc, startX + 25, itemY, displayText, strlen(displayText)); // Adjust text position for checkbox
+        // char displayText[MAX_TODO_LENGTH + 30]; // Adjust size for timestamp 
+        // snprintf(displayText, sizeof(displayText), "%s %s", todos[i].timestamp, todos[i].text); // Assume timestamp exists
+        // TextOut(hdc, startX + 25, itemY, displayText, strlen(displayText)); // Adjust text position for checkbox
 
+        // Draw first text
+        TextOut(hdc, startX, itemY, todos[i].text1, strlen(todos[i].text1));
+
+        // Draw second text in a second column
+        TextOut(hdc, startX + 25 + secondInputWidth, itemY, todos[i].text2, strlen(todos[i].text2));
+        
         // Set font and color for the "X" button
         SelectObject(hdc, hFontRegular); // Use regular font for the "X" button
-        SetTextColor(hdc, RGB(33, 33, 33)); // Set text color to red for the "X" button
+        SetTextColor(hdc, RGB(0, 0, 0)); // Set text color to red for the "X" button
 
         // Draw "X" button for deletion
         TextOutW(hdc, startX + deleteButtonOffset, itemY, L"\u2715", 1); // Using Unicode for rendering the symbol
@@ -311,6 +388,29 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
     DeleteObject(hFontStrikethroughUnderlined);
 
     EndPaint(hwnd, &ps);
+    break;
+}
+
+      
+    case WM_CHAR: {
+    switch (wParam) {
+        case 'N': // Add a new todo
+            AddTodo(hwnd);
+            InvalidateRect(hwnd, NULL, TRUE); // Redraw window to reflect changes
+            break;
+        case 'D': // Delete the first todo
+            if (numTodos > 0) { // Ensure there's at least one todo to delete
+                DeleteTodo(hwnd, 0);
+                InvalidateRect(hwnd, NULL, TRUE); // Redraw window to reflect changes
+            }
+            break;
+        case 'T': // Toggle completion of the first todo
+            if (numTodos > 0) { // Ensure there's at least one todo to toggle
+                ToggleCompletion(hwnd, 0);
+                InvalidateRect(hwnd, NULL, TRUE); // Redraw window to reflect changes
+            }
+            break;
+    }
     break;
 }
            
