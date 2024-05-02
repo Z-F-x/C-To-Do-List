@@ -46,15 +46,17 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 void LoadTodos() {
     FILE* file = fopen("todos.txt", "r");
     if (file != NULL) {
-        char line[2 * MAX_TODO_LENGTH + 1]; // Adjust buffer size for two texts and a delimiter
+        char line[2 * MAX_TODO_LENGTH + 10]; // Adjust buffer size to handle two texts, a delimiter, and the completion status
         while (fgets(line, sizeof(line), file) != NULL && numTodos < MAX_TODOS) {
             char *token = strtok(line, "|");
             if (token != NULL) {
                 strncpy(todos[numTodos].text1, token, MAX_TODO_LENGTH);
-                token = strtok(NULL, "\n");
+                token = strtok(NULL, "|");
                 if (token != NULL) {
                     strncpy(todos[numTodos].text2, token, MAX_TODO_LENGTH);
-                    todos[numTodos].completed = FALSE;
+                    token = strtok(NULL, "\n");
+                    // Set default completion status to FALSE if not specified
+                    todos[numTodos].completed = (token != NULL) ? atoi(token) : FALSE;
                     numTodos++;
                 }
             }
@@ -85,7 +87,7 @@ void AddTodo(HWND hwnd) {
             fprintf(file, "%s|%s\n", buffer1, buffer2); // Save both texts separated by a delimiter
             fclose(file);
         } else {
-            MessageBox(hwnd, "Failed to open file for writing.", "Error", MB_OK);
+            MessageBox(hwnd, "Failed to open To-do file for writing.", "Error", MB_OK);
         }
     }
 }
@@ -94,8 +96,8 @@ void AddTodo(HWND hwnd) {
 void DeleteTodo(HWND hwnd, int index) {
     if (index >= 0 && index < numTodos) {
         for (int i = index; i < numTodos - 1; ++i) {
-            strcpy(todos[i].text1, todos[i + 1].text1); // Corrected from todos[i].text
-            strcpy(todos[i].text2, todos[i + 1].text2); // Handle the second text field
+            strcpy(todos[i].text1, todos[i + 1].text1);
+            strcpy(todos[i].text2, todos[i + 1].text2);
             todos[i].completed = todos[i + 1].completed;
         }
         numTodos--;
@@ -103,22 +105,25 @@ void DeleteTodo(HWND hwnd, int index) {
         FILE* file = fopen("todos.txt", "w");
         if (file != NULL) {
             for (int i = 0; i < numTodos; ++i) {
-                // Ensure both text fields are written, separated by a delimiter
-                fprintf(file, "%s|%s\n", todos[i].text1, todos[i].text2);
+                fprintf(file, "%s|%s|%d\n", todos[i].text1, todos[i].text2, todos[i].completed);
             }
             fclose(file);
-        } else {
-            MessageBox(hwnd, "Failed to open file for updating.", "Error", MB_OK);
         }
-
-        InvalidateRect(hwnd, NULL, TRUE);
     }
 }
 
 void ToggleCompletion(HWND hwnd, int index) {
     if (index >= 0 && index < numTodos) {
         todos[index].completed = !todos[index].completed;
-        InvalidateRect(hwnd, NULL, TRUE); // Redraw window
+        InvalidateRect(hwnd, NULL, TRUE);
+
+        FILE* file = fopen("todos.txt", "w");
+        if (file != NULL) {
+            for (int i = 0; i < numTodos; ++i) {
+                fprintf(file, "%s|%s|%d\n", todos[i].text1, todos[i].text2, todos[i].completed);
+            }
+            fclose(file);
+        }
     }
 }
 
