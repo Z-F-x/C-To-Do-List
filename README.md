@@ -5,9 +5,10 @@ Simple To Do List
 føreslår at .exen alltid loade forrige todolist men todolisten verte lagra te ein nye fil så du kan åbna gamle todoar eller ha fleire todoar, toggleable ofc!
 
 Version 1.2 - Two column input field 
+![image](https://github.com/Z-F-x/C-To-Do-List/assets/123411327/9d44b6af-de80-4d1d-a5df-d531247be515)
 
 
-Version 1.1 - Timestamped
+Version 1.1 - Iteration with timestamp
 ![Screenshot 2](https://github.com/Z-F-x/C-To-Do-List/assets/123411327/8cf44591-cb3f-4d92-9a2a-8eef5d1be3e8)
 
 
