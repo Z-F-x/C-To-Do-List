@@ -4,12 +4,4 @@ Simple To Do List
 
 føreslår at .exen alltid loade forrige todolist men todolisten verte lagra te ein nye fil så du kan åbna gamle todoar eller ha fleire todoar, toggleable ofc!
 
-![Screenshot 3.png](E:\Stuff\Tech\Developement\C\C-To-Do-List\Screenshot%203.png)
-
-![Screenshot 4.png](E:\Stuff\Tech\Developement\C\C-To-Do-List\Screenshot%204.png)
-
-
-
-![Screenshot 2.png](E:\Stuff\Tech\Developement\C\C-To-Do-List\Screenshot%202.png)
-
-![Screenshot 1.png](E:\Stuff\Tech\Developement\C\C-To-Do-List\Screenshot%201.png)
+<img width="438" alt="Screenshot 5" src="https://github.com/Z-F-x/C-To-Do-List/assets/123411327/cfc521fc-3a09-4c62-8f5e-10f0e689a1ce">
