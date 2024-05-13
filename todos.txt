@@ -1,4 +1,10 @@
-test|test|1
-test2|est2|0
-test3|teste|1
-t|ttt|0
+CustomTag|NewItem |0
+CustomTag2|NewItemTwo |1
+CustomTage3|NwItemThree |0
+Red|Do this ASAP |0
+Orange|Do This Soon |0
+Green|Do This Whenever |1
+Green|Do This Whenever 2 |0
+Green|Do This Whenever 3 |1
+Orange|Do this Soon |0
+CustomTag4|NewItemFour|1

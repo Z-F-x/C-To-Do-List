@@ -1,4 +1,5 @@
-// Compile with gcc main.c bitmap.c -o C-To-Do-List.exe -mwindows
+// ✔ Compile with: gcc main.c bitmap.c -o C-To-Do-List.exe -mwindows -lgdi32 -luser32
+// ✖ Previous compilation flags:  gcc main.c bitmap.c -o C-To-Do-List.exe -mwindows
 // Reference https://learn.microsoft.com/en-us/windows/win32/learnwin32/your-first-windows-program
 
 #include <stdio.h>
@@ -19,6 +20,12 @@ HBITMAP CreateCheckboxBitmap(HDC hdc, BOOL checked);
 #define IDC_ADD_BUTTON 101
 #define IDC_DELETE_BUTTON 102
 #define IDC_INPUT_EDIT 103 // Define IDC_INPUT_EDIT
+#define ID_TOGGLE_BUTTON 1 // New ID for the settings button
+// #define IDC_SETTINGS_APPLY_BUTTON 105
+// #define ID_TOGGLE_BUTTON 1
+
+
+
 
 char newTodoText[MAX_TODO_LENGTH] = {0};
 int newTodoTextLength = 0;
@@ -40,8 +47,30 @@ TodoItem todos[MAX_TODOS];
 int numTodos = 0; // Initial number of todos
 HWND hInputEdit; // Declare a handle for the first input field
 HWND hSecondInputEdit; // Declare a handle for the second input field
+void ApplyTheme(HWND hwnd, BOOL darkTheme);
+void SaveDarkModeSetting(BOOL darkMode);
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+
+
+void SaveDarkModeSetting(BOOL darkMode) {
+    FILE *file = fopen("config.txt", "w");
+    if (file != NULL) {
+        fprintf(file, "DarkMode=%d", darkMode);
+        fclose(file);
+    }
+}
+
+BOOL LoadDarkModeSetting() {
+    FILE *file = fopen("config.txt", "r");
+    if (file != NULL) {
+        int darkMode = 0;
+        fscanf(file, "DarkMode=%d", &darkMode);
+        fclose(file);
+        return darkMode != 0;
+    }
+    return FALSE; // Default to light mode if no config file exists
+}
 
 void LoadTodos() {
     FILE* file = fopen("todos.txt", "r");
@@ -64,6 +93,9 @@ void LoadTodos() {
         fclose(file);
     }
 }
+
+
+
 
 void AddTodo(HWND hwnd) {
     if (numTodos < MAX_TODOS) {
@@ -127,7 +159,41 @@ void ToggleCompletion(HWND hwnd, int index) {
     }
 }
 
+// void ApplyTheme(HWND hwnd, BOOL darkTheme) {
+//     HBRUSH hBrush = CreateSolidBrush(darkTheme ? RGB(45, 45, 48) : RGB(255, 255, 255));
+//     SetClassLongPtr(hwnd, GCLP_HBRBACKGROUND, (LONG_PTR)hBrush);
+//     InvalidateRect(hwnd, NULL, TRUE);  // Forces the window to be repainted
+//     UpdateWindow(hwnd);  // Immediately updates the client area
+// }
+
+// void ApplyTheme(HWND hwnd, BOOL darkTheme) {
+//     HBRUSH hBrush = CreateSolidBrush(darkTheme ? RGB(45, 45, 48) : RGB(255, 255, 255));
+//     SetClassLongPtr(hwnd, GCLP_HBRBACKGROUND, (LONG_PTR)hBrush);
+//     InvalidateRect(hwnd, NULL, TRUE); // Forces the window to be repainted
+//     UpdateWindow(hwnd); // Immediately updates the client area
+// }
+
+void ApplyTheme(HWND hwnd, BOOL darkTheme) {
+    // Update the background brush for the entire window
+    HBRUSH hBrush = CreateSolidBrush(darkTheme ? RGB(45, 45, 48) : RGB(255, 255, 255));
+    SetClassLongPtr(hwnd, GCLP_HBRBACKGROUND, (LONG_PTR)hBrush);
+
+    // Force redraw of the window and all controls
+    InvalidateRect(hwnd, NULL, TRUE);
+    UpdateWindow(hwnd);
+
+    // Iterate through all child windows to set their themes
+    HWND hChild = GetWindow(hwnd, GW_CHILD);
+    while (hChild) {
+        SendMessage(hChild, WM_THEMECHANGED, (WPARAM)darkTheme, 0);
+        hChild = GetWindow(hChild, GW_HWNDNEXT);
+    }
+}
+
+
+
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
+    BOOL darkTheme = LoadDarkModeSetting();
     LoadTodos();
         if (numTodos == 0) {
     }
@@ -135,6 +201,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     wc.lpfnWndProc = WindowProc;
     wc.hInstance = hInstance;
     wc.lpszClassName = "MyWindowClass";
+    wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+
     if (!RegisterClass(&wc)) {
         MessageBox(NULL, "Window Registration Failed!", "Error", MB_ICONEXCLAMATION | MB_OK);
         return 0;
@@ -151,25 +219,21 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     int secondInputWidth = totalWidth * 3 / 5;
     int buttonWidth = totalWidth * 1 / 5;
 
-//    // Create an Add Button
-//     HWND hAddButton = CreateWindowEx(
-//     0, "BUTTON", "Add Todo", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,
-//     10 + firstInputWidth + secondInputWidth, 20, buttonWidth - 20, 30, hWnd, (HMENU)IDC_ADD_BUTTON, GetModuleHandle(NULL), NULL);
 
    // Create an Add Button
     HWND hAddButton = CreateWindowEx(
     0,                // No extended styles 
-    "BUTTON",         // Predefined class; Unicode assumed 
-    "Add",       // Button text 
-    WS_TABSTOP | WS_VISIBLE | WS_TABSTOP | WS_CHILD | BS_PUSHBUTTON,  // Styles
+    "BUTTON",   ""      // Predefined class; Unicode assumed 
+    "Add",            // Button text 
+    WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_OWNERDRAW,  // Styles, including BS_OWNERDRAW
     10 + firstInputWidth + secondInputWidth, // x position 
     20,                                      // y position 
     buttonWidth - 30,                        // Button width
     30,                                      // Button height
     hWnd,                                    // Parent window
-    (HMENU)IDC_ADD_BUTTON, // The control's ID for command messages
+    (HMENU)IDC_ADD_BUTTON,                   // The control's ID for command messages
     (HINSTANCE)GetWindowLongPtr(hWnd, GWLP_HINSTANCE),
-    NULL);            // Pointer not needed.
+    NULL);         // Pointer not needed.
 
     // Create an input field with WS_TABSTOP
     hInputEdit = CreateWindowEx(
@@ -202,6 +266,22 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         GetModuleHandle(NULL),
         NULL);
 
+
+
+    HWND hSettingsButton = CreateWindowEx(
+        0, "BUTTON", "Dark Mode", 
+        WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_OWNERDRAW, // Notice the BS_OWNERDRAW style
+        10, 730, 80, 30,
+        hWnd, (HMENU)ID_TOGGLE_BUTTON, hInstance, NULL);
+
+    // CreateWindow("BUTTON", "Toggle Theme",
+    //     WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,
+    // //     10, 730, 80, 30, 
+    //     hwnd,
+    //     (HMENU)ID_TOGGLE_BUTTON,
+    //     hInstance,
+    //     NULL);
+
     // Set a character limit for the input field
     SendMessage(hSecondInputEdit, EM_SETLIMITTEXT, (WPARAM)40, 0); // Limit to 8 characters
     // Note: You do not need to cast GetWindowLongPtr(hWnd, GWLP_HINSTANCE) to (HINSTANCE) for GetModuleHandle(NULL) is appropriate here.
@@ -221,12 +301,119 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     }
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
-   static int focusIndex = 1; // This variable will keep its value between calls
+    static int focusIndex = 1; // This variable will keep its value between calls
     HWND hFocus;
+    static BOOL darkTheme = FALSE;  // This should be static to maintain state or a global variable
+    static BOOL initialized = FALSE;
+    static HBRUSH hbrBkgnd = NULL; // Declare brush handle to manage theme color
+    static HBRUSH hbrBkgndBtn = NULL;  // Declare this at the top of WindowProc
+    if (!initialized) {
+        darkTheme = LoadDarkModeSetting();  // Load once when the window is created
+        ApplyTheme(hwnd, darkTheme);        // Apply initial theme
+        initialized = TRUE;
+    }
     switch (uMsg) {
+        // case WM_CTLCOLORBTN: {
+        //     HDC hdcBtn = (HDC) wParam;
+        //     HWND hwndBtn = (HWND) lParam;
+        //     SetBkMode(hdcBtn, TRANSPARENT);
+        //     if (!hbrBkgndBtn || darkTheme) {
+        //         // Recreate the brush if theme has changed or not yet created
+        //         if (hbrBkgndBtn) {
+        //             DeleteObject(hbrBkgndBtn); // Clean up old brush
+        //         }
+        //         hbrBkgndBtn = CreateSolidBrush(darkTheme ? RGB(45, 45, 48) : RGB(240, 240, 240));
+        //     }
+        //     if (darkTheme) {
+        //                 ApplyTheme(hwnd, darkTheme);  // Ensure ApplyTheme properly adjusts all UI elements
+
+
+        //             return (INT_PTR)hbrBkgndBtn;
+        //         } else {
+        //             SetTextColor(hdcBtn, RGB(0, 0, 0));       // Black text
+        //             SetBkColor(hdcBtn, RGB(240, 240, 240));   // Lighter background
+        //             return (INT_PTR)hbrBkgndBtn;
+        //         }
+        // }
+case WM_DRAWITEM:
+{
+    LPDRAWITEMSTRUCT pDIS = (LPDRAWITEMSTRUCT)lParam;
+    if (pDIS->CtlType == ODT_BUTTON) {
+        WCHAR buttonText[10];
+        GetWindowTextW(pDIS->hwndItem, buttonText, sizeof(buttonText) / sizeof(buttonText[0]));
+
+        HBRUSH hBrush = CreateSolidBrush(darkTheme ? RGB(45, 45, 48) : RGB(240, 240, 240));
+        HPEN hPen = CreatePen(PS_SOLID, 1, darkTheme ? RGB(255, 255, 255) : RGB(0, 0, 0));
+        SelectObject(pDIS->hDC, hBrush);
+        SelectObject(pDIS->hDC, hPen);
+
+        Rectangle(pDIS->hDC, pDIS->rcItem.left, pDIS->rcItem.top, pDIS->rcItem.right, pDIS->rcItem.bottom);
+
+        SetTextColor(pDIS->hDC, darkTheme ? RGB(255, 255, 255) : RGB(0, 0, 0));
+        SetBkMode(pDIS->hDC, TRANSPARENT);
+        DrawTextW(pDIS->hDC, buttonText, -1, &pDIS->rcItem, DT_CENTER | DT_SINGLELINE | DT_VCENTER);
+
+        DeleteObject(hBrush);
+        DeleteObject(hPen);
+    }
+    return TRUE;
+}
+
+
+
+        case WM_CTLCOLORBTN:
+        case WM_CTLCOLOREDIT:
+        case WM_CTLCOLORSTATIC: {
+            HDC hdc = (HDC) wParam;
+            HWND hwndControl = (HWND) lParam;
+            SetBkMode(hdc, TRANSPARENT);
+            if (darkTheme) {
+                SetTextColor(hdc, RGB(255, 255, 255)); // White text
+                SetBkColor(hdc, RGB(45, 45, 48));      // Dark background
+            } else {
+                SetTextColor(hdc, RGB(0, 0, 0));       // Black text
+                SetBkColor(hdc, RGB(255, 255, 255));   // Light background
+            }
+                  }
+        // case WM_CTLCOLOREDIT: {
+        //     HDC hdcEdit = (HDC)wParam;
+        //     HWND hwndEdit = (HWND)lParam;
+        //     if (darkTheme) {
+        //         SetTextColor(hdcEdit, RGB(255, 255, 255)); // White text
+        //         SetBkColor(hdcEdit, RGB(45, 45, 48)); // Dark background
+        //         if (!hbrBkgnd) {
+        //             hbrBkgnd = CreateSolidBrush(RGB(45, 45, 48));
+        //         }
+        //         return (INT_PTR)hbrBkgnd;
+        //     } else {
+        //         SetTextColor(hdcEdit, RGB(0, 0, 0)); // Black text
+        //         SetBkColor(hdcEdit, RGB(255, 255, 255)); // White background
+        //         if (hbrBkgnd) {
+        //             DeleteObject(hbrBkgnd);
+        //             hbrBkgnd = NULL;
+        //         }
+        //         return (INT_PTR)GetStockObject(WHITE_BRUSH);
+        //     }
+        // }
+
         case WM_COMMAND: {
             int wmId = LOWORD(wParam);
             switch (wmId) {
+        case ID_TOGGLE_BUTTON:{
+            darkTheme = !darkTheme;
+            SaveDarkModeSetting(darkTheme);
+            HWND hChild = GetWindow(hwnd, GW_CHILD);
+            while (hChild) {
+                char className[256];
+                GetClassName(hChild, className, sizeof(className));
+                if (strcmp(className, "Button") == 0) {
+                    InvalidateRect(hChild, NULL, TRUE);
+                }
+                hChild = GetWindow(hChild, GW_HWNDNEXT);
+            }
+            InvalidateRect(hwnd, NULL, TRUE);
+            break;
+            }
             case IDC_ADD_BUTTON: {
                 char buffer[MAX_TODO_LENGTH];
                 GetWindowText(hInputEdit, buffer, sizeof(buffer));
@@ -311,18 +498,49 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
         case WM_PAINT: {
             // If secondInputWidth isn't globally defined, ensure it's calculated within WM_PAINT or passed appropriately.
             // Assuming a totalWidth of 600, as in WinMain:
+
+
+
+
+
             int secondInputWidth = 100;
+            // PAINTSTRUCT ps;
+            //     HDC hdc = BeginPaint(hwnd, &ps);
+            //     SetBkMode(hdc, TRANSPARENT);
+            //     SetTextColor(hdc, darkTheme ? RGB(255, 255, 255) : RGB(0, 0, 0));
+            //     TextOut(hdc, 10, 50, "Sample Text", 11);
+            
+            // FillRect(hdc, &ps.rcPaint, (HBRUSH) (COLOR_WINDOW+1));
+            // HBITMAP CreateCheckboxBitmap(HDC hdc, BOOL checked);
+
             PAINTSTRUCT ps;
-            HDC hdc = BeginPaint(hwnd, &ps);
-            FillRect(hdc, &ps.rcPaint, (HBRUSH) (COLOR_WINDOW+1));
-            HBITMAP CreateCheckboxBitmap(HDC hdc, BOOL checked);
+                HDC hdc = BeginPaint(hwnd, &ps);
+                // Setting the background mode and text color based on the theme
+                SetBkMode(hdc, TRANSPARENT);
+                COLORREF textColor = darkTheme ? RGB(255, 255, 255) : RGB(0, 0, 0);
+                SetTextColor(hdc, textColor);
+
+
+
+                // Set background brush depending on the theme
+                HBRUSH hBrush = darkTheme ? CreateSolidBrush(RGB(30, 30, 30)) : CreateSolidBrush(RGB(255, 255, 255));
+                FillRect(hdc, &ps.rcPaint, hBrush);
+                DeleteObject(hBrush); // Clean up the brush
+
+                // Text output adjusted for theme
+     
+
+               HBITMAP CreateCheckboxBitmap(HDC hdc, BOOL checked);
+
+
+
 
 
             int startX = 10; // Declare and initialize startX here
             int startY = 100; // Declare and initialize startY here
 
-            SetTextColor(hdc, RGB(0, 0, 0)); // Black color
-            SetBkMode(hdc, TRANSPARENT); // Transparent background for text
+
+
             // Create the regular and strikethrough fonts
             LOGFONT lf = {0};
             lf.lfHeight = 20; // Adjust the font size as necessary
@@ -346,6 +564,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
    for (int i = 0; i < numTodos; ++i) {
         int itemY = startY + (i * 30); // Calculate Y position for each item
 
+
         // Create and draw the checkbox bitmap for each todo item
         HBITMAP hCheckboxBitmap = CreateCheckboxBitmap(hdc, todos[i].completed);
         HDC hMemDC = CreateCompatibleDC(hdc);
@@ -364,8 +583,9 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
         SelectObject(hdc, selectedFont);
 
          // Set text color based on completion status for the item text
-        COLORREF textColor = todos[i].completed ? RGB(128, 128, 128) : RGB(0, 0, 0);
-        SetTextColor(hdc, textColor);
+        // COLORREF textColor = todos[i].completed ? RGB(128, 128, 128) : RGB(0, 0, 0);
+        SetTextColor(hdc, todos[i].completed ? RGB(128, 128, 128) : textColor);
+
 
         // Construct and draw the todo item's text, including a timestamp if present
         // char displayText[MAX_TODO_LENGTH + 30]; // Adjust size for timestamp 
@@ -380,7 +600,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
         
         // Set font and color for the "X" button
         SelectObject(hdc, hFontRegular); // Use regular font for the "X" button
-        SetTextColor(hdc, RGB(0, 0, 0)); // Set text color to red for the "X" button
+        SetTextColor(hdc, darkTheme ? RGB(255, 85, 85) : RGB(255, 0, 0)); // Red in both themes, but can be adjusted
+
 
         // Draw "X" button for deletion
         TextOutW(hdc, startX + deleteButtonOffset, itemY, L"\u2715", 1); // Using Unicode for rendering the symbol
@@ -391,6 +612,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
     DeleteObject(hFontStrikethrough);
     DeleteObject(hFontUnderlined);
     DeleteObject(hFontStrikethroughUnderlined);
+
 
     EndPaint(hwnd, &ps);
     break;
@@ -444,6 +666,12 @@ case WM_LBUTTONDOWN: {
         }
 
         case WM_DESTROY:
+           if (hbrBkgnd) {
+                DeleteObject(hbrBkgnd); // Clean up the brush when destroying the window
+            }
+           if (hbrBkgndBtn) {
+                DeleteObject(hbrBkgndBtn);
+            }
             PostQuitMessage(0);
             break;
         default:
@@ -451,3 +679,4 @@ case WM_LBUTTONDOWN: {
     }
     return 0;
 }
+
