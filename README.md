@@ -1,15 +1,33 @@
-# C-To-Do-List
+                                         ______
+	                                   /     /     
+     ______         _________          /     /     
+    / _____|       |___   ___|        /     /     
+   / /			 | |           /     /     
+  / /                  | |          /     /     
+ | |                   | |     ____/     /     
+ | |                   | |    /     \   /     
+ | |                   | |   /   _   \ /     
+ | |          ___      | |   |  / \  |/    
+ | |         |___|     | |   |  | |  |    
+  \ \                  | |   |  \_/  |    _______ 
+   \ \_____            | |  /\       /   |       \   
+    \______|           |_| /  \_____/    |        \
+	                     /     /        |   __   |   
+     ______  	         /     /         |  |  \  |   _____     
+     \     \            /     /          |  |  |  |  /     \   
+      \     \          /     /           |  |  |  | /   _   \    
+       \     \        /     /     ___    |  |  |  | |  / \  |
+        \     \      /     /     |___|   |  |  |  | |  | |  |
+         \     \    /     /              |  |__   | |  \_/  | 
+          \     \  /     /               |        / \       / 
+           \     \/     /                |_______/   \_____/
+            \          /
+             \        / 
+              \      /
+               \    /
+                \__/ 
 
-Simple To Do List
-
-føreslår at .exen alltid loade forrige todolist men todolisten verte lagra te ein nye fil så du kan åbna gamle todoar eller ha fleire todoar, toggleable ofc!
-
-![Screenshot 3.png](E:\Stuff\Tech\Developement\C\C-To-Do-List\Screenshot%203.png)
-
-![Screenshot 4.png](E:\Stuff\Tech\Developement\C\C-To-Do-List\Screenshot%204.png)
 
 
 
-![Screenshot 2.png](E:\Stuff\Tech\Developement\C\C-To-Do-List\Screenshot%202.png)
 
-![Screenshot 1.png](E:\Stuff\Tech\Developement\C\C-To-Do-List\Screenshot%201.png)

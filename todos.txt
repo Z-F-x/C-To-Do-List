@@ -1,19 +1,19 @@
-123123|124124124124124
-asdwaeqw|asdas
-asd|awwr
-AWR|AWDWR
-AWRRAWR|AWDWRRAWRWRA
-AWRWR|AWRWRWR
-AWD|QWER
-asdkl|klasdkl
-alcklm,|kladlk
-lkasdkl|klasdkl
-asdkl|asdkl
-klasdkl|asdklaskldkl
-askdkl|asdkl
-asdjk|asdjlk
-laksdkj|jkasd
-jkasdkj|jkasdjk
-asdjk|asdjk
-12444444|124124
-1111111111|1111111111111111111111111111111111111111
+Yellow |Lag FakturaGenerator
+|0
+Yellow|Lag Key Navigation for FakturaGenerator
+|0
+Yellow |Lage Key Navigation for C-To-Do-List
+|0
+Yellow |Lage Tab-Cyclabable lists for C-To-Do
+|0
+Yellow|Lage .exe ikon for C-To-Do-List 
+|0
+Red|Skrive Ferdig 'Metavesen'
+|0
+Red|Få betalt frå Mali Profil AS
+|0
+Red|Gjer ferdig bug 7004 |1
+Red|Gjer ferdig bug 6763 |0
+Red|Gjer ferdig bug 6974 |0
+Green|Gjer at ctrl+a velger all tekst i felt
+Red|CCOM - Fikse duplicate PDF bug!!
