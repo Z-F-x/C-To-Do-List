@@ -1,10 +1,11 @@
-// ✔ Compile with: gcc main.c bitmap.c -o C-To-Do-List.exe resource.o -mwindows -lgdi32 -luser32
-// Compile resource with: windres resource.rc resource.o
-// And: gcc -o myapp main.c resource.o -lgdi32
-// ✖ Previous compilation flags:  gcc main.c bitmap.c -o C-To-Do-List.exe -mwindows
+
+
+// Compile resource with for 64 bit arc: windres -i resource.rc -O coff -F pe-x86-64 -o resource.o  
+// Compile executable with: gcc main.c bitmap.c -o ..\C-To-Do-List.exe resource.o -mwindows -lgdi32 -luser32
+
 // Reference https://learn.microsoft.com/en-us/windows/win32/learnwin32/your-first-windows-program
 
-#include "./include/resource.h"
+#include "../include/resource.h"
 #include <stdio.h>
 #include <string.h>
 #include <Windows.h>
@@ -59,7 +60,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 
 void SaveDarkModeSetting(BOOL darkMode) {
-    FILE *file = fopen("config.txt", "w");
+    FILE *file = fopen("config/config.txt", "w");
     if (file != NULL) {
         fprintf(file, "DarkMode=%d", darkMode);
         fclose(file);
@@ -67,7 +68,7 @@ void SaveDarkModeSetting(BOOL darkMode) {
 }
 
 BOOL LoadDarkModeSetting() {
-    FILE *file = fopen("config.txt", "r");
+    FILE *file = fopen("config/config.txt", "r");
     if (file != NULL) {
         int darkMode = 0;
         fscanf(file, "DarkMode=%d", &darkMode);
@@ -78,7 +79,7 @@ BOOL LoadDarkModeSetting() {
 }
 
 void LoadTodos() {
-    FILE* file = fopen("todos.txt", "r");
+    FILE* file = fopen("config/todos.txt", "r");
     if (file != NULL) {
         char line[2 * MAX_TODO_LENGTH + 10]; // Adjust buffer size to handle two texts, a delimiter, and the completion status
         while (fgets(line, sizeof(line), file) != NULL && numTodos < MAX_TODOS) {
@@ -119,7 +120,7 @@ void AddTodo(HWND hwnd) {
         InvalidateRect(hwnd, NULL, TRUE); // Redraw window
         
         // Update file storage logic to handle two texts
-        FILE* file = fopen("todos.txt", "a");
+        FILE* file = fopen("config/todos.txt", "a");
         if (file != NULL) {
             fprintf(file, "%s|%s\n", buffer1, buffer2); // Save both texts separated by a delimiter
             fclose(file);
@@ -139,7 +140,7 @@ void DeleteTodo(HWND hwnd, int index) {
         }
         numTodos--;
 
-        FILE* file = fopen("todos.txt", "w");
+        FILE* file = fopen("config/todos.txt", "w");
         if (file != NULL) {
             for (int i = 0; i < numTodos; ++i) {
                 fprintf(file, "%s|%s|%d\n", todos[i].text1, todos[i].text2, todos[i].completed);
@@ -154,7 +155,7 @@ void ToggleCompletion(HWND hwnd, int index) {
         todos[index].completed = !todos[index].completed;
         InvalidateRect(hwnd, NULL, TRUE);
 
-        FILE* file = fopen("todos.txt", "w");
+        FILE* file = fopen("configtodos.txt", "w");
         if (file != NULL) {
             for (int i = 0; i < numTodos; ++i) {
                 fprintf(file, "%s|%s|%d\n", todos[i].text1, todos[i].text2, todos[i].completed);

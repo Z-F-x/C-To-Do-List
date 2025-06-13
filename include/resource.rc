@@ -1,4 +1,0 @@
-// resource.rc
-#include "resource.h"
-
-IDI_MYICON ICON "NewThang.ico"

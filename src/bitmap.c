@@ -1,6 +1,6 @@
 // Compile with gcc main.c bitmap.c -o C-To-Do-List.exe -mwindows
 
-#include "bitmap.h"  // Include the header to match declaration and definition
+#include "../include/bitmap.h"  // Include the header to match declaration and definition
 
 HBITMAP CreateCheckboxBitmap(HDC hdc, BOOL checked) {
     // Create a compatible DC for drawing the bitmap

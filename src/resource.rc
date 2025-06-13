@@ -1,0 +1,4 @@
+// resource.rc
+#include "../include/resource.h"
+
+IDI_MYICON ICON "icon.ico"
