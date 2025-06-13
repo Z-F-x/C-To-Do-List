@@ -7,13 +7,15 @@ Yellow |Lage Key Navigation for C-To-Do-List
 Yellow |Lage Tab-Cyclabable lists for C-To-Do
 |0
 Yellow|Lage .exe ikon for C-To-Do-List 
-|0
+|1
 Red|Skrive Ferdig 'Metavesen'
 |0
 Red|Få betalt frå Mali Profil AS
-|0
+|1
 Red|Gjer ferdig bug 7004 |1
-Red|Gjer ferdig bug 6763 |0
-Red|Gjer ferdig bug 6974 |0
+Red|Gjer ferdig bug 6763 |1
+Red|Gjer ferdig bug 6974 |1
 Green|Gjer at ctrl+a velger all tekst i felt
+|0
 Red|CCOM - Fikse duplicate PDF bug!!
+|1

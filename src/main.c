@@ -4,7 +4,7 @@
 // ✖ Previous compilation flags:  gcc main.c bitmap.c -o C-To-Do-List.exe -mwindows
 // Reference https://learn.microsoft.com/en-us/windows/win32/learnwin32/your-first-windows-program
 
-#include "resource.h"
+#include "./include/resource.h"
 #include <stdio.h>
 #include <string.h>
 #include <Windows.h>
@@ -14,7 +14,9 @@
 // bitmap.h
 #ifndef BITMAP_H // Prevent multiple inclusions
 #define BITMAP_H
-#include <windows.h> // Include Windows.h here or in each C file as needed
+
+// Include Windows.h here or in each C file as needed
+#include <windows.h> 
 HBITMAP CreateCheckboxBitmap(HDC hdc, BOOL checked);
 #endif // BITMAP_H
 
